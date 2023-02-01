@@ -1,6 +1,8 @@
 import dayjs = require('dayjs');
-const ja = require('dayjs/locale/ja');
+const ja = require('dayjs/locale/ja')
+const customParseFormat = require('dayjs/plugin/customParseFormat');
 dayjs.locale(ja);
+dayjs.extend(customParseFormat);
 
 export const newSheet = (auto: boolean = false) => {
     const spreadSheet: GoogleAppsScript.Spreadsheet.Spreadsheet = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('spread_sheet_id')!);
@@ -32,12 +34,14 @@ export const newSheet = (auto: boolean = false) => {
     const copySheet = template.copyTo(spreadSheet);
     copySheet.setName(str);
 
-    const inputDay: dayjs.Dayjs = dayjs(`${str.substring(0, 4)}/${str.substring(4, 6)}/1`, 'YYYY/MM/DD');
+    const inputDay: dayjs.Dayjs = dayjs(str, 'YYYYMM');
 
     // B2を変更(ただの年表記)
-    copySheet.getRange(2, 2).setValue(`${inputDay.year()}`);
+    copySheet.getRange(2, 2).setValue(`${inputDay.year()}年`);
     // B3を変更(日付計算の起点)
     copySheet.getRange(3, 2).setValue(`${inputDay.date(1).format('YYYY/MM/DD')}`);
+
+    checkEndOfMonth(copySheet);
 };
 
 // 翌月分のシートを生成
@@ -60,7 +64,23 @@ export const newNextSheet = () => {
     copySheet.setName(`${year}${month}`);
 
     // B2を変更(ただの年表記)
-    copySheet.getRange(2, 2).setValue(`${year}`);
+    copySheet.getRange(2, 2).setValue(`${year}年`);
     // B3を変更(日付計算の起点)
     copySheet.getRange(3, 2).setValue(`${nextMonth.format('YYYY/MM/DD')}`);
+
+    checkEndOfMonth(copySheet);
+};
+
+// 29~31日(B31~B33)がその月に存在するか確認、なければ行データを削除
+const checkEndOfMonth = (sheet: GoogleAppsScript.Spreadsheet.Sheet) => {
+    const day1: GoogleAppsScript.Spreadsheet.Range = sheet.getRange(3, 2);
+    for (let row of [33, 32, 31]) {
+        let targetWeek: GoogleAppsScript.Spreadsheet.Range = sheet.getRange(row, 1);
+        let targetDay: GoogleAppsScript.Spreadsheet.Range = sheet.getRange(row, 2);
+        if (dayjs(day1.getDisplayValue(), 'MM月DD日').month() === dayjs(targetDay.getDisplayValue(), 'MM月DD日').month()) {
+            break;
+        }
+        targetWeek.clearContent();
+        targetDay.clearContent();
+    }
 };
