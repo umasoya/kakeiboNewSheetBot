@@ -69,6 +69,8 @@ export const newNextSheet = () => {
     copySheet.getRange(3, 2).setValue(`${nextMonth.format('YYYY/MM/DD')}`);
 
     checkEndOfMonth(copySheet);
+
+    sendMessage(`シート「${year}${month}」を作成しました`);
 };
 
 // 29~31日(B31~B33)がその月に存在するか確認、なければ行データを削除
@@ -83,4 +85,28 @@ const checkEndOfMonth = (sheet: GoogleAppsScript.Spreadsheet.Sheet) => {
         targetWeek.clearContent();
         targetDay.clearContent();
     }
+};
+
+//  ブロードキャストメッセージで通知する
+const sendMessage = (message :string) => {
+    const url: string = 'https://api.line.me/v2/bot/message/broadcast';
+    const channelAccessToken: string = PropertiesService.getScriptProperties().getProperty('channel_access_token')!;
+    const payload = {
+        'messages': [
+            {
+                'type': 'text',
+                'text': message,
+            }
+        ],
+        'notificationDisabled': true,
+    };
+    const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${channelAccessToken}`,
+        },
+        method: 'post',
+        payload: JSON.stringify(payload),
+    };
+    UrlFetchApp.fetch(url, options);
 };
